@@ -21,6 +21,9 @@ RUN pip install --no-cache-dir numpy typing_extensions pydub sentencepiece
 # Install fairseq2 first
 RUN pip install --no-cache-dir fairseq2==0.2.1
 
+# Install gdown for Google Drive downloads
+RUN pip install --no-cache-dir gdown
+
 # Copy application code
 COPY . /app/
 
@@ -29,6 +32,12 @@ RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communicati
 
 # Create model directories
 RUN mkdir -p /app/models/SeamlessExpressive
+
+# Download SeamlessExpressive model from Google Drive as shown in the notebook
+RUN cd /app/models && \
+    gdown https://drive.google.com/uc?id=1oQzAtQiDPP0QVYM-UAVgE-_-LhDQxzcV -O SeamlessExpressive.tar.gz && \
+    tar -xzvf SeamlessExpressive.tar.gz && \
+    rm SeamlessExpressive.tar.gz
 
 # Download sample expressivity data for testing
 RUN cd /app/models && \

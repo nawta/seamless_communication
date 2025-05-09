@@ -33,11 +33,13 @@ RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communicati
 # Create model directories
 RUN mkdir -p /app/models
 
-# Download SeamlessExpressive model from Google Drive
+# Download SeamlessExpressive model from Google Drive and place it in the models directory
 RUN cd /app/models && \
     gdown https://drive.google.com/uc?id=1oQzAtQiDPP0QVYM-UAVgE-_-LhDQxzcV -O SeamlessExpressive.tar && \
     tar -xzvf SeamlessExpressive.tar && \
-    rm SeamlessExpressive.tar
+    rm SeamlessExpressive.tar && \
+    mv SeamlessExpressive/* . && \
+    rm -r SeamlessExpressive
 
 # Create directory for shared data
 RUN mkdir -p /shared_data

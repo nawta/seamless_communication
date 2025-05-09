@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     sox \
     python3-dev \
     gdown \
+    unzip \
+    tar \
     cmake \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -33,9 +35,9 @@ RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communicati
 RUN mkdir -p /app/models/SeamlessExpressive
 
 # Download SeamlessExpressive model from Google Drive
-RUN cd /app/models && \\
-    gdown https://drive.google.com/uc?id=1oQzAtQiDPP0QVYM-UAVgE-_-LhDQxzcV -O SeamlessExpressive.tar && \\
-    tar -xzvf SeamlessExpressive.tar && \\
+RUN cd /app/models && \
+    gdown https://drive.google.com/uc?id=1oQzAtQiDPP0QVYM-UAVgE-_-LhDQxzcV -O SeamlessExpressive.tar && \
+    tar -xzvf SeamlessExpressive.tar && \
     rm SeamlessExpressive.tar
 
 # Create directory for shared data

@@ -31,10 +31,10 @@ COPY . /app/
 RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communication.git
 
 # Create model directories
-RUN mkdir -p /app/models/SeamlessExpressive
+RUN mkdir -p /app
 
 # Download SeamlessExpressive model from Google Drive
-RUN cd /app/models/SeamlessExpressive && \
+RUN cd /app && \
     gdown https://drive.google.com/uc?id=1oQzAtQiDPP0QVYM-UAVgE-_-LhDQxzcV -O SeamlessExpressive.tar && \
     tar -xzvf SeamlessExpressive.tar && \
     rm SeamlessExpressive.tar
@@ -45,7 +45,7 @@ RUN mkdir -p /shared_data
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-ENV MODEL_DIR=/app/models/SeamlessExpressive
+ENV MODEL_DIR=/app
 
 
 # Default command

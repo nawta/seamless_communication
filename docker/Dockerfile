@@ -44,5 +44,6 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV MODEL_DIR=/app/models/SeamlessExpressive
 
+
 # Default command
 CMD ["python", "-c", "import time; print('seamless_communication container is running'); time.sleep(infinity)"]

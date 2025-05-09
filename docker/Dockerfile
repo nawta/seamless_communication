@@ -20,7 +20,6 @@ RUN pip install --no-cache-dir numpy typing_extensions pydub sentencepiece
 
 # Install fairseq2 first
 RUN pip install --no-cache-dir fairseq2==0.2.1
-
 # Copy application code
 COPY . /app/
 

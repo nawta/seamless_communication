@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install basic Python dependencies first
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir numpy typing_extensions pydub sentencepiece
+RUN pip install --no-cache-dir numpy typing_extensions pydub sentencepiece gdown
 
 # Install fairseq2 first
 RUN pip install --no-cache-dir fairseq2==0.2.1

@@ -41,6 +41,11 @@ RUN cd /app/models && \
     mv SeamlessExpressive/* . && \
     rm -r SeamlessExpressive
 
+# Create a symbolic link to the model file
+RUN ln -s /app/models/m2m_expressive_unity.pt /app/m2m_expressive_unity.pt
+RUN ln -s /app/models/pretssel_melhifigan_wm.pt /app/pretssel_melhifigan_wm.pt
+RUN ln -s /app/models/pretssel_melhifigan_wm-16khz.pt /app/pretssel_melhifigan_wm-16khz.pt
+
 # Create directory for shared data
 RUN mkdir -p /shared_data
 

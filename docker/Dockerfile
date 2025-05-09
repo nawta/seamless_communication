@@ -31,11 +31,11 @@ RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communicati
 # Create model directories
 RUN mkdir -p /app/models/SeamlessExpressive
 
-# Download sample expressivity data for testing
-RUN cd /app/models && \
-    wget https://dl.fbaipublicfiles.com/seamless/data/samples/expressivity_data.tar.gz -O expressivity_data.tar.gz && \
-    tar -xzvf expressivity_data.tar.gz && \
-    rm expressivity_data.tar.gz
+# Download SeamlessExpressive model from Google Drive
+RUN cd /app/models && \\
+    gdown https://drive.google.com/uc?id=1oQzAtQiDPP0QVYM-UAVgE-_-LhDQxzcV -O SeamlessExpressive.tar && \\
+    tar -xzvf SeamlessExpressive.tar && \\
+    rm SeamlessExpressive.tar
 
 # Create directory for shared data
 RUN mkdir -p /shared_data

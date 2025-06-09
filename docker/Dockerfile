@@ -32,13 +32,16 @@ RUN pip install --no-cache-dir numpy typing_extensions pydub sentencepiece gdown
 RUN pip install --no-cache-dir fairseq2==0.2.1
 
 # GPU対応版PyTorchをインストール (CUDA 11.3 対応版)
-RUN pip install --no-cache-dir torch==1.10.0+cu113 torchvision==0.11.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install --no-cache-dir torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Copy application code for this component only
-COPY seamless_communication/ /app/
+COPY submodules/seamless_communication/ /app/
 
 # Install from GitHub directly as shown in the notebook
 RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communication.git
+
+# Install FastAPI and Uvicorn for the API server
+RUN pip install --no-cache-dir fastapi uvicorn[standard] python-multipart
 
 # Create model directories
 RUN mkdir -p /app/models
@@ -75,7 +78,7 @@ RUN set -eux; \
 RUN mkdir -p /shared_data
 
 # Set environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 ENV MODEL_DIR=/app/models
 

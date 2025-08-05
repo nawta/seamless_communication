@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM nvidia/cuda:11.3.1-cudnn8-devel-ubuntu20.04
 
 WORKDIR /app
@@ -39,6 +40,7 @@ COPY submodules/seamless_communication/ /app/
 
 # Install from GitHub directly as shown in the notebook
 RUN pip install --no-cache-dir git+https://github.com/nawta/seamless_communication.git
+
 
 # Install FastAPI and Uvicorn for the API server
 RUN pip install --no-cache-dir fastapi uvicorn[standard] python-multipart

@@ -6,12 +6,15 @@
 
 import argparse
 import logging
+import json
 import torch
 import torchaudio
 from pathlib import Path
+from typing import Optional
 
-from fairseq2.data import SequenceData
+from fairseq2.data import SequenceData, Collater
 from fairseq2.data.audio import WaveformToFbankConverter
+from fairseq2.nn.padding import get_seqs_and_padding_mask
 
 from seamless_communication.cli.expressivity.predict.pretssel_generator import (
     PretsselGenerator,
@@ -63,12 +66,28 @@ def main() -> None:
         help="The duration factor for NAR T2U model.",
         default=1.0,
     )
+    parser.add_argument(
+        "--extract_text",
+        action="store_true",
+        help="Extract only ASR and translation text without audio synthesis",
+    )
+    parser.add_argument(
+        "--inject_text",
+        type=str,
+        default=None,
+        help="Inject custom text for synthesis while preserving speaker characteristics",
+    )
     args = parser.parse_args()
 
-    if not args.tgt_lang or args.output_path is None:
-        raise Exception(
-            "--tgt_lang, --output_path must be provided for SeamlessExpressive inference."
-        )
+    # Validate arguments
+    if not args.tgt_lang:
+        raise Exception("--tgt_lang must be provided for SeamlessExpressive inference.")
+    
+    if not args.extract_text and args.output_path is None:
+        raise Exception("--output_path must be provided when not using --extract_text.")
+    
+    if args.extract_text and args.inject_text:
+        raise Exception("--extract_text and --inject_text cannot be used simultaneously.")
         
     if args.gated_model_dir:
         add_gated_assets(args.gated_model_dir)
@@ -156,6 +175,91 @@ def main() -> None:
         prosody_encoder_input=src_gcmvn,
     )
 
+    # Handle extract_text option - only extract text without synthesis
+    if args.extract_text:
+        # Get ASR result (source text)
+        asr_lang = args.src_lang if args.src_lang else args.tgt_lang
+        logger.info(f"Extracting source text using language: {asr_lang}")
+        
+        asr_output, _ = translator.predict(
+            src,
+            "s2tt",  # Using S2TT for ASR
+            asr_lang,
+            text_generation_opts=text_generation_opts,
+        )
+        
+        # Remove prosody tokens
+        source_text = remove_prosody_tokens_from_text(str(asr_output[0]))
+        translated_text = remove_prosody_tokens_from_text(str(text_output[0]))
+        
+        # Output results
+        logger.info(f"Source text ({asr_lang}): {source_text}")
+        logger.info(f"Translated text ({args.tgt_lang}): {translated_text}")
+        
+        # Save to JSON file if output_path is provided
+        if args.output_path:
+            output_data = {
+                "source_text": source_text,
+                "source_lang": asr_lang,
+                "target_text": translated_text,
+                "target_lang": args.tgt_lang
+            }
+            json_path = args.output_path.with_suffix('.json')
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(output_data, f, ensure_ascii=False, indent=2)
+            logger.info(f"Text extraction results saved to: {json_path}")
+        
+        return  # Exit without audio synthesis
+    
+    # Handle inject_text option - replace text while preserving voice characteristics
+    if args.inject_text:
+        original_text = remove_prosody_tokens_from_text(str(text_output[0]))
+        logger.info(f"Original translation: {original_text}")
+        logger.info(f"Injecting text: {args.inject_text}")
+        
+        # Create text encoder for the target language
+        text_encoder = translator.text_tokenizer.create_encoder(
+            task="translation",
+            lang=args.tgt_lang,
+            mode="source",
+            device=translator.device
+        )
+        
+        # Create collater if not exists
+        collate = Collater(
+            pad_value=translator.text_tokenizer.vocab_info.pad_idx or 0,
+            pad_to_multiple=2
+        )
+        
+        # Encode the injected text
+        injected_text_data = collate(text_encoder(args.inject_text))
+        injected_seqs, injected_padding_mask = get_seqs_and_padding_mask(injected_text_data)
+        
+        # Generate units from injected text using T2ST (Text to Speech Translation)
+        # Import necessary modules for modality
+        from seamless_communication.inference.translator import Modality
+        
+        # Get prediction with injected text
+        _, injected_unit_output = translator.get_prediction(
+            translator.model,
+            translator.text_tokenizer,
+            translator.unit_tokenizer,
+            injected_seqs,
+            injected_padding_mask,
+            input_modality=Modality.TEXT,
+            output_modality=Modality.SPEECH,
+            tgt_lang=args.tgt_lang,
+            text_generation_opts=text_generation_opts,
+            unit_generation_opts=unit_generation_opts,
+            unit_generation_ngram_filtering=args.unit_generation_ngram_filtering,
+            duration_factor=args.duration_factor,
+            prosody_encoder_input=src_gcmvn,  # Preserve original prosody
+        )
+        
+        # Use injected units for synthesis
+        unit_output = injected_unit_output
+        logger.info(f"Generated units from injected text")
+    
     assert unit_output is not None
     speech_output = pretssel_generator.predict(
         unit_output.units,
@@ -170,9 +274,12 @@ def main() -> None:
         sample_rate=speech_output.sample_rate,
     )
 
-    text_out = remove_prosody_tokens_from_text(str(text_output[0]))
-
-    logger.info(f"Translated text in {args.tgt_lang}: {text_out}")
+    # Display the text that was synthesized
+    if args.inject_text:
+        logger.info(f"Synthesized injected text: {args.inject_text}")
+    else:
+        text_out = remove_prosody_tokens_from_text(str(text_output[0]))
+        logger.info(f"Translated text in {args.tgt_lang}: {text_out}")
 
 
 if __name__ == "__main__":

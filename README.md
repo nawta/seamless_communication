@@ -105,10 +105,39 @@ For running S2TT/ASR natively (without Python) using GGML, please refer to [the 
 > [!NOTE]
 > Please check the [section](#seamlessexpressive-models) on how to download the model.
 
-Here’s an example of using the CLI from the root directory to run inference.
+Here's an example of using the CLI from the root directory to run inference.
 
 ```bash
+# Audio-to-audio translation
 expressivity_predict <path_to_input_audio> --tgt_lang <tgt_lang> --model_name seamless_expressivity --vocoder_name vocoder_pretssel --output_path <path_to_save_audio>
+
+# Extract text only (ASR + translation text) without audio synthesis
+expressivity_predict <path_to_input_audio> --tgt_lang <tgt_lang> --model_name seamless_expressivity --vocoder_name vocoder_pretssel --extract_text --output_path <path_to_save_audio>
+```
+
+The `--extract_text` option saves a JSON file containing:
+- `source_text`: Original speech transcription (ASR result)
+- `target_text`: Translated text
+- `source_lang`: Source language code
+- `target_lang`: Target language code
+
+### API Server
+
+SeamlessExpressive also includes a FastAPI server for HTTP-based inference:
+
+```bash
+# Start the API server
+python src/seamless_communication/api_server.py
+
+# Translation endpoint
+POST /translate
+- Upload audio file
+- Returns job ID for async processing
+
+# Text extraction endpoint  
+POST /extract_text
+- Upload audio file
+- Returns JSON with source and target texts immediately
 ```
 
 ### SeamlessStreaming and Seamless Inference

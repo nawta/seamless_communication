@@ -178,7 +178,7 @@ def main() -> None:
     # Handle extract_text option - only extract text without synthesis
     if args.extract_text:
         # Get ASR result (source text)
-        asr_lang = args.src_lang if args.src_lang else args.tgt_lang
+        asr_lang = args.src_lang if args.src_lang else "eng"
         logger.info(f"Extracting source text using language: {asr_lang}")
         
         asr_output, _ = translator.predict(

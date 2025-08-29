@@ -333,6 +333,111 @@ async def download_translation(job_id: str):
     )
 
 
+@app.post("/extract_text")
+async def extract_text(
+    audio: UploadFile = File(...),
+    target_lang: str = Form(...),
+    src_lang: str = Form(None)
+):
+    """
+    Extract source (ASR) text and target translation text from an input audio without audio synthesis.
+
+    - **audio**: Audio file (WAV format)
+    - **target_lang**: Target language code for translation (e.g., 'spa')
+    - **src_lang**: Optional source language for ASR (defaults to 'eng' if not provided)
+    """
+    try:
+        # Persist uploaded audio to a temp file under shared_data to avoid memory spikes
+        tmp_dir = Path("/shared_data/api_jobs/extract_text")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_wav = tmp_dir / f"{uuid.uuid4()}.wav"
+        content = await audio.read()
+        with open(tmp_wav, "wb") as f:
+            f.write(content)
+
+        # Load and resample audio
+        wav, sample_rate = torchaudio.load(str(tmp_wav))
+        wav = torchaudio.functional.resample(wav, orig_freq=sample_rate, new_freq=16_000)
+        wav = wav.transpose(0, 1)
+
+        # Feature extraction
+        data = fbank_extractor({"waveform": wav, "sample_rate": 16000})
+        fbank = data["fbank"]
+        gcmvn_fbank = fbank.subtract(gcmvn_mean).divide(gcmvn_std)
+        std, mean = torch.std_mean(fbank, dim=0)
+        fbank = fbank.subtract(mean).divide(std)
+
+        src = SequenceData(
+            seqs=fbank.unsqueeze(0),
+            seq_lens=torch.LongTensor([fbank.shape[0]]),
+            is_ragged=False,
+        )
+        src_gcmvn = SequenceData(
+            seqs=gcmvn_fbank.unsqueeze(0),
+            seq_lens=torch.LongTensor([gcmvn_fbank.shape[0]]),
+            is_ragged=False,
+        )
+
+        # Build generation opts (reuse defaults similar to translation job)
+        class Args:
+            beam_size = 5
+            text_generation_beam_size = 5
+            text_generation_max_len_a = 0
+            text_generation_max_len_b = 200
+            text_unk_blocking = False
+            text_generation_ngram_blocking = False
+            unit_generation_beam_size = 5
+            no_repeat_ngram_size = 4
+            unit_generation_max_len_a = 25
+            unit_generation_max_len_b = 50
+            unit_generation_ngram_blocking = False
+            unit_generation_ngram_filtering = False
+            algo = "beam"
+            max_len_a = 0
+            max_len_b = 200
+            max_len = None
+            min_len = 1
+            beam_search_soft_max = False
+            beam_search_hard_max = False
+            beam_search_stop_on_eos = True
+
+        text_generation_opts, unit_generation_opts = set_generation_opts(Args())
+
+        # Target-side text from S2ST pipeline (no synthesis)
+        text_output, _ = translator.predict(
+            src,
+            "s2st",
+            target_lang,
+            text_generation_opts=text_generation_opts,
+            unit_generation_opts=unit_generation_opts,
+            unit_generation_ngram_filtering=False,
+            duration_factor=1.0,
+            prosody_encoder_input=src_gcmvn,
+        )
+
+        # Source-side ASR text using S2TT
+        asr_lang = src_lang if src_lang else "eng"
+        asr_output, _ = translator.predict(
+            src,
+            "s2tt",
+            asr_lang,
+            text_generation_opts=text_generation_opts,
+        )
+
+        source_text = remove_prosody_tokens_from_text(str(asr_output[0]))
+        translated_text = remove_prosody_tokens_from_text(str(text_output[0]))
+
+        return {
+            "src_text": source_text,
+            "tgt_text": translated_text,
+            "src_lang": asr_lang,
+            "tgt_lang": target_lang,
+        }
+    except Exception as e:
+        logger.error(f"/extract_text failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

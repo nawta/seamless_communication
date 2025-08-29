@@ -121,6 +121,8 @@ The `--extract_text` option saves a JSON file containing:
 - `source_lang`: Source language code
 - `target_lang`: Target language code
 
+> Note: When used from the dubbing pipeline, JSON files are saved next to the translated WAV under `--output_dir`.
+
 ### API Server
 
 SeamlessExpressive also includes a FastAPI server for HTTP-based inference:
@@ -139,6 +141,8 @@ POST /extract_text
 - Upload audio file
 - Returns JSON with source and target texts immediately
 ```
+
+> Note: The dubbing pipeline sets `USE_SEAMLESS_API=true` and calls `/extract_text` to save `speaker_*_translated.json` next to each `speaker_*_translated.wav`.
 
 ### SeamlessStreaming and Seamless Inference
 
